@@ -1,0 +1,211 @@
+---
+title: "A Bayesian Linear Model of Trump's Disapproval and Approval Rating"
+author: "Jeremy Diaz"
+date: "June 20, 2017"
+output: html_document
+---
+
+### The Code
+
+Feel free to skip to the bottom for results and description!
+
+```{r setup, message = FALSE}
+
+
+# Packages
+library(rethinking)
+library(dplyr)
+library(xml2)
+library(rvest)
+
+
+```
+
+```{r fetch_and_process_data, message = FALSE}
+
+
+# Fetch the page
+webpage <- read_html("https://www.realclearpolitics.com/epolls/other/president_trump_job_approval-6179.html")
+
+
+# Get the table as a dataframe
+tbls <- html_nodes(webpage, "table") %>%
+  .[4] %>%
+  html_table(fill = TRUE, header = 1) %>%
+  as.data.frame()
+
+
+# Get rid of the site's generated average, because
+# It's a summary of already present data points
+tbls <- dplyr::filter(tbls, Poll != "RCP Average")
+
+
+# Get the end date of each poll - for plotting display
+tbls$Date_end <- substring(tbls$Date, 7)
+
+
+# Clean up format
+tbls$Date_end <- gsub(" ", "", tbls$Date_end)
+
+
+# Make it into a date
+tbls$Date_end <- as.Date(tbls$Date_end, format = "%m/%d")
+
+
+# Convert that into days since Jan 1, 2017
+# For modelling
+tbls$Day_of_year <- as.numeric(strftime(tbls$Date_end, format = "%j"))
+
+
+```
+
+```{r model_and_plot, message = FALSE}
+
+
+# Make and fit the disapproval model
+disapp_model <- rethinking::map(alist(Disapprove ~ dnorm(mu, sigma),
+                                      mu <- a + b*(Day_of_year),      # Simple linear model
+                                      a ~ dnorm(48, 5),               # Relatively narrow prior for intercept around
+                                                                      #     popular vote % that went to Hillary
+                                      b ~ dnorm(0, 1),                # Relatively narrow effect of time, since units are
+                                                                      #     also small - days
+                                      sigma ~ dunif(0, 5)),           # Relatively narrow stand dev because I have low
+                                                                      #     faith in large variance
+                                data = tbls)
+
+
+# Get a point for every day of 2017 so far
+day_seq_all <- seq(from = 24, to = 220, length.out = 196)
+
+
+# Format those days to predict off
+day_seq_all_form <- list(Day_of_year = day_seq_all)
+
+
+# Sample mu values from the disapproval model for every day of 2017 so far 
+mu <- rethinking::link(disapp_model, data = day_seq_all_form)
+
+
+# Get the mean of those mu values
+mu_mean <- apply(mu, 2, mean)
+
+
+# Get the HPDI for the mu values
+mu_HPDI <- apply(mu, 2, rethinking::HPDI, prob = 0.97)
+
+
+# Sample model predictions for those days
+pred_disapp <- rethinking::sim(disapp_model, data = day_seq_all_form)
+
+
+# Get the 97% HPDI for those predictions
+pred_HPDI <- apply(pred_disapp, 2, rethinking::HPDI, prob = 0.97)
+
+
+# Plot raw points
+plot(Disapprove ~ Day_of_year, data = tbls, pch = 21, col = "blue",
+     xlim = c(24, 220), ylim = c(0, 100), xlab = "Day since Jan 1, 2017",
+     ylab = "Rating (%)")
+
+
+# Add the MAP line
+lines(day_seq_all, mu_mean, lwd = 3, col = "dark blue")
+
+
+# Add the HPDI for the MAP line
+shade(mu_HPDI, day_seq_all, col = col.alpha("blue", 0.15))
+
+
+# Add the HPDI for the predictions
+shade(pred_HPDI, day_seq_all, col = col.alpha("blue", 0.15))
+
+
+# Allow other points to be added
+par(new = TRUE)
+
+
+# Make and fit the approval model
+app_model <- rethinking::map(alist(Approve ~ dnorm(mu, sigma),
+                                   mu <- a + b*(Day_of_year),
+                                   a ~ dnorm(46, 5),
+                                   b ~ dnorm(0, 1),
+                                   sigma ~ dunif(0, 5)),
+                             data = tbls)
+
+
+# Get the mu values for each day
+mu <- rethinking::link(app_model, data = day_seq_all_form)
+
+
+# Get the mean of those mu values
+mu_mean <- apply(mu, 2, mean)
+
+
+# Get the HPDI for the mu values
+mu_HPDI <- apply(mu, 2, rethinking::HPDI, prob = 0.97)
+
+
+# Sample model predictions for those days
+pred_app <- rethinking::sim(app_model, data = day_seq_all_form)
+
+
+# Get the 97% PI for those predictions
+pred_HPDI <- apply(pred_app, 2, rethinking::HPDI, prob = 0.97)
+
+
+# Plot raw points
+plot(Approve ~ Day_of_year, data = tbls, pch = 21, col = "red",
+     axes = FALSE, xlim = c(24, 220), ylim = c(0, 100),
+     xlab = "", ylab = "",
+     main = "Trump's Approval and Disapproval Rating with Time\nAs of August 7, 2017")
+
+
+# Add the MAP line
+lines(day_seq_all, mu_mean, lwd = 3, col = "red")
+
+
+# Add the HPDI for the MAP line
+rethinking::shade(mu_HPDI, day_seq_all, col = col.alpha("red", 0.15))
+
+
+# Add the HPDI for the predictions
+rethinking::shade(pred_HPDI, day_seq_all, col = col.alpha("red", 0.15))
+
+
+# Add a legend
+legend(x = 20, y = 100, c("Disapproval", "Approval"),
+       col = c("blue", "red"), lwd = 3)
+
+
+
+```
+
+### Description
+
+The model is fit to polling data from RealClearPolitics, and I got the idea to do this after seeing the following reddit thread: https://www.reddit.com/r/dataisbeautiful/comments/6ievy0/president_trumps_approval_disapproval_rating_oc/
+
+As you can see the main result are two linear regressions, one for approval rating (red) and one for disapproval rating (blue). Each line is a *maximum a posteriori* (MAP) estimation based off the following priors:
+
+#### Disapproval Rating
+
+1. Disapproval Rating ~ Normal(mu, sigma)
+2. mu = Alpha + Beta(Day of Year)
+3. Alpha ~ Normal(48, 5)
+4. Beta ~ Normal(0, 1)
+5. sigma ~ Uniform(0, 5)
+
+The mean of the Alpha (intercept) distribution is set to the approximate percent of the popular vote which Hillary Clinton received. Beta (the rate) is centered narrowly around 0 because the unit of change is days, which is almost guaranteed to yield little change. Sigma is restricted uniformly between 0 and 5 because I doubt the MAP estimate line will be off by more than 10. I use a basic linear regression for the sake of simplicity.
+
+#### Approval Rating
+
+1. Approval Rating ~ Normal(mu, sigma)
+2. mu = Alpha + Beta(Day of Year)
+3. Alpha ~ Normal(46, 5)
+4. Beta ~ Normal(0, 1)
+5. sigma ~ Uniform(0, 5)
+
+All justifications here are largely the same with the exception that the mean of the Alpha distribution here is the approximate percent of the popular vote which Donald Trump received.
+
+#### Shaded Intervals
+
+The lines each have a narrowly shaded interval around them, showing the uncertainty in the lines themselves; these shaded regions contain the most plausible 97% of other possible MAP estimate lines. The larger shaded regions surrounding each line represent the area in which the models expect to find 97% of the actual poll ratings, whereas the lines show the mean/expected poll rating at each point in time.

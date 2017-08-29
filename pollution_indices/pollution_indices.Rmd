@@ -1,0 +1,147 @@
+---
+title: "Pollution Indices by World Region"
+author: "Jeremy Diaz"
+date: "August 29, 2017"
+output: html_document
+---
+
+### The Web Scraping
+
+The pollution index data is taken from: https://www.numbeo.com/pollution/rankings_by_country.jsp. To learn more about their pollution index see: https://www.numbeo.com/pollution/indices_explained.jsp.
+
+```{r setup, message = FALSE}
+
+
+# Packages
+library(rvest)
+library(dplyr)
+library(ggplot2)
+
+
+# Data table URL to scrape
+url <- "https://www.numbeo.com/pollution/rankings_by_country.jsp"
+
+
+# Get the table as a R data.frame
+pollution_df <- read_html(url) %>%
+  html_nodes("table") %>%
+  .[4] %>%
+  html_table(fill = TRUE, header = 1) %>%
+  as.data.frame()
+
+
+```
+
+Some intermediate processing is then done to assign each country to its respective world region: Asia, Africa, America, Europe, or Oceania.
+
+```{r processing, echo = FALSE}
+
+
+# Remove rank column
+pollution_df <- dplyr::select(pollution_df,
+                              -Rank)
+
+
+# Assign the countries to Asia
+Asia <- c("Mongolia", "Myanmar", "Bangladesh", "Vietnam", "China", "Lebanon",
+          "Nepal", "Jordan", "Iran", "Pakistan", "India", "Bahrain", "Kazakhstan",
+          "Saudi Arabia", "Georgia", "Thailand", "Qatar", "Philippines", "Turkey",
+          "Hong Kong", "Malaysia", "Taiwan", "Israel", "Sri Lanka", "Indonesia", 
+          "Cyprus", "United Arab Emirates", "South Korea", "Japan", "Singapore") %>%
+  as.data.frame()
+
+Asia$Region <- rep("Asia", length(Asia))
+
+
+# Assign the countries to Africa
+Africa <- c("Egypt", "Nigeria", "Kenya", "Morocco", "Algeria", "Tunisia",
+            "South Africa", "Mauritius") %>%
+  as.data.frame()
+
+Africa$Region <- rep("Africa", length(Africa))
+
+
+# Assign the countries to N and S America
+America <- c("Peru", "Dominican Republic", "Venezuela", "Jamaica", "Chile",
+             "Mexico", "Colombia", "Brazil", "Ecuador", "Argentina", "Uruguay",
+             "Costa Rica", "United States", "Canada") %>%
+  as.data.frame()
+
+America$Region <- rep("America", length(America))
+
+
+# Assign the countries to Europe
+Europe <- c("Monaco", "Macedonia", "Albania", "Malta", "Ukraine", "Russia",
+            "Bulgaria", "Bosnia And Herzegovina", "Serbia", "Greece", 
+            "Italy", "Romania", "Poland", "Belgium", "Hungary", "Slovakia",
+            "Czech Republic", "France", "Spain", "Belarus", "United Kingdom",
+            "Lithuania", "Latvia", "Croatia", "Portugal", "Ireland", "Netherlands",
+            "Germany", "Slovenia", "Denmark", "Austria", "Switzerland", "Norway",
+            "Sweden", "Estonia", "Finland", "Iceland") %>%
+  as.data.frame()
+
+Europe$Region <- rep("Europe", length(Europe))
+
+
+# Assign the countries to Oceania
+Oceania <- c("Australia", "New Zealand") %>%
+  as.data.frame()
+
+Oceania$Region <- rep("Oceania", length(Oceania))
+
+
+# Combine the data.frames
+all_df <- rbind(Africa, America, Asia, Europe, Oceania)
+
+
+# Match the World Region-Country matched data.frame to the
+# Pollution index-Country matched data.frane
+all_df$poll_ind <- pollution_df$Pollution.Index[match(all_df$.,
+                                                      pollution_df$Country)]
+
+
+```
+
+### The Visualization
+
+Now we can produce a vibrant scatter plot of the data. The large grey squares represent the average value of each region.
+
+```{r plot}
+
+
+# Plot it
+ggplot(all_df,
+       aes(x = Region,
+           y = poll_ind,
+           fill = Region)) +
+  theme_bw() +
+  stat_summary(aes(y = poll_ind, group = 1),
+               fun.y = mean, 
+               group = 1,
+               geom = "point",
+               size = 17,
+               shape = 22,
+               col = "black",
+               fill = "grey") +
+  geom_jitter(width = 0.05,
+              height = 0.05,
+              size = 5,
+              pch = 21,
+              col = "black") +
+  labs(y = "Pollution Index Value",
+       x = "",
+       title = "Pollution Indices by World Region",
+       subtitle = "Data from: https://www.numbeo.com/pollution/rankings_by_country.jsp") +
+  viridis::scale_fill_viridis(discrete = TRUE) +
+  theme(plot.title = element_text(hjust = 0.5, size = 18),
+        plot.subtitle = element_text(hjust = 0.5, size = 10),
+        axis.text.x = element_text(size = 14),
+        axis.text.y = element_text(size = 10),
+        axis.title = element_text(size = 14),
+        aspect.ratio = 8.5/11) +
+  guides(fill = FALSE)
+
+
+```
+
+

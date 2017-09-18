@@ -1,0 +1,120 @@
+---
+title: "How Google Searches can tell the 2017 Hurricane Season"
+author: "Jeremy Diaz"
+date: "September 17, 2017"
+output: html_document
+---
+
+### The Packages Used
+
+```{r setup}
+
+
+# Packages
+library(gtrendsR)
+library(ggplot2)
+
+
+```
+
+### The Data
+
+The `gtrendsR` package makes it exceptionally easy to get data on Google searches. Here the data used will be the keyword 'hurricane', specific hurricane names, and the major US states that those hurricanes hit.
+
+```{r data}
+
+
+# Get the keyword searches showing up over the last month
+hurricane <- gtrendsR::gtrends(keyword = c("Hurricane",
+                                           "Hurricane Irma",
+                                           "Florida",
+                                           "Hurricane Harvey",
+                                           "Texas"),
+                               time = 'today 1-m')
+
+
+# Get data in a cleaner format
+hurricane_df <- hurricane$interest_over_time
+
+
+# Make the variable name cleaner for the plot
+colnames(hurricane_df)[3] <- 'Keyword'
+
+
+# Make the keyword variable a factor and fix the levels
+hurricane_df$Keyword <- factor(hurricane_df$Keyword,
+                               levels = c("Hurricane",
+                                          "Hurricane Irma",
+                                          "Florida",
+                                          "Hurricane Harvey",
+                                          "Texas"))
+
+
+```
+
+### The Plot
+
+```{r plot, fig.height = 8, fig.width = 7.2}
+
+
+ggplot(hurricane_df,
+       aes(x = date,
+           y = hits,
+           col = Keyword)) +
+  theme_minimal() +
+  scale_color_manual(values = c('grey',
+                                'darkred',
+                                'red',
+                                'navy',
+                                'blue')) +
+  geom_line(lwd = 2) +
+  labs(x = "", y = '',
+       title = "Hurricane Activity and Interest",
+       subtitle = "As told by the number of Google searches") +
+  theme(aspect.ratio = 10/9,
+        axis.text.y = element_blank(),
+        axis.text.x = element_text(size = 12),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        plot.title = element_text(hjust = 0.5, size = 17),
+        plot.subtitle = element_text(hjust = 0.5, size = 12),
+        legend.text = element_text(size = 12),
+        legend.title = element_blank(),
+        legend.position = c(0.185, 0.5))
+
+
+```
+
+### The Detailed Plot
+
+```{r detailed-plot, fig.height = 8, fig.width = 7.2}
+
+
+ggplot(hurricane_df,
+       aes(x = date,
+           y = hits,
+           col = Keyword)) +
+  theme_minimal() +
+  scale_color_manual(values = c('grey',
+                                'darkred',
+                                'red',
+                                'navy',
+                                'blue')) +
+  geom_line(lwd = 2) +
+  labs(x = "", y = "Number of Google Searches",
+       title = "Hurricane Activity and Interest",
+       subtitle = "As told by the number of Google searches") +
+  theme(aspect.ratio = 10/9,
+        axis.text.y = element_text(size = 10),
+        axis.text.x = element_text(size = 12),
+        axis.title.y = element_text(size = 14),
+        plot.title = element_text(hjust = 0.5, size = 17),
+        plot.subtitle = element_text(hjust = 0.5, size = 12),
+        legend.text = element_text(size = 12),
+        legend.title = element_blank(),
+        legend.position = c(0.185, 0.5))
+
+
+```
+
+

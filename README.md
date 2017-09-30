@@ -1,5 +1,5 @@
 # Side Projects
-Miscellaneous visualizations and analyses
+Small, independent visualizations and analyses
 
 ### Links to Code-Integrated Reports
 

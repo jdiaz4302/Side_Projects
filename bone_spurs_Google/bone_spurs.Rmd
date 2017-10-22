@@ -1,0 +1,77 @@
+---
+title: "Peak in Bone Spur Searches after Executive Order 13223 Modification"
+author: "Jeremy Diaz"
+date: "October 21, 2017"
+output: html_document
+---
+
+This visualization was inspired by the following reddit post (https://www.reddit.com/r/politics/comments/77o6oz/presidential_executive_order_amending_executive/donglor/), where a user joked that the "How to get bone spurs in feet?" search was going to reach a record high following President Trump's ammending of Executive Order 13223.
+
+### Libraries Used
+
+```{r setup}
+
+
+
+library(gtrendsR)
+library(ggplot2)
+
+
+
+```
+
+### The Gathering
+
+Thankfully, the `gtrendsR` package makes getting Google hits (https://support.google.com/analytics/answer/6086082?hl=en) data extremely easy.
+
+```{r GetGoogleHitsData}
+
+
+
+# Get 'bone spurs' Google hits data
+bone_spurs <- gtrends('bone spurs', time = 'now 7-d')$interest_over_time
+
+
+# Format the date of USAToday article on EO modification
+EO_article <- strptime("2017-10-20 16:18:00", format = '%Y-%m-%d %H:%M:%S')
+
+
+
+```
+
+### The Visualization
+
+And... voilà! Turns out that the Google hits for 'bone spurs' did reach a weakly maximum following the news!
+
+```{r TheFigure, fig.height = 6, fig.width = 6}
+
+
+
+# Plot it
+ggplot(bone_spurs,
+       aes(x = date,
+           y = hits)) +
+  geom_vline(xintercept = EO_article,
+             col = 'red', lwd = 1.25,
+             alpha = 0.5) +
+  geom_line(lwd = 1,
+            col = 'black') +
+  theme_minimal() +
+  geom_text(aes(x = EO_article,
+                y = 95),
+            label = 'Executive\nOrder\n13223\nAmmended',
+            hjust = 1.1, col = 'red') +
+  labs(x = '', y = '',
+       title = 'Bone Spurs Google Search Activity') +
+  theme(aspect.ratio = 10/9,
+        axis.text.y = element_blank(),
+        axis.text.x = element_text(size = 12),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        plot.title = element_text(hjust = 0.5, size = 16))
+
+
+
+```
+
+

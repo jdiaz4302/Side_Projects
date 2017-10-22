@@ -1,0 +1,72 @@
+---
+title: "The Walking Dead's IMDb Ratings Visualized"
+author: "Jeremy Diaz"
+date: "August 29, 2017"
+output: html_document
+---
+
+On https://www.reddit.com/r/dataisbeautiful/, there's been a lot of heat maps lately. Additionally, the new season of "The Walking Dead" is about to come out, so I decided to do a heat map of IMDb ratings for all of the "The Walking Dead" episodes, enjoy!
+
+### Set up and Web Scraping
+
+```{r setup, message = FALSE}
+
+
+# Packages
+library(rvest)
+library(dplyr)
+library(ggplot2)
+
+
+# Data table URL to scrape
+url <- 'http://www.imdb.com/title/tt1520211/epdate'
+
+
+# Get the table as a R data.frame
+wd_imdb_df <- read_html(url) %>%
+  html_nodes("table") %>%
+  .[1] %>%
+  html_table(fill = TRUE, header = 1) %>%
+  as.data.frame()
+
+
+colnames(wd_imdb_df)[1] <- "Season_Episode"
+
+wd_imdb_df <- dplyr::select(wd_imdb_df,
+                              c(Season_Episode,
+                                UserRating))
+
+wd_imdb_df$Season <- substr(wd_imdb_df$Season_Episode, 1, 1)
+
+wd_imdb_df$Episode <- c(1:6, 1:13, 1:16, 1:16, 1:16,
+                          1:16, 1:16)
+
+
+
+```
+
+# The Visualization
+
+```{r processing, fig.width = 7, fig.height = 6}
+
+
+ggplot(wd_imdb_df,
+       aes(x = Season,
+           y = Episode,
+           fill = UserRating)) +
+  geom_tile(col = 'black', lwd = 0.35) +
+  theme_bw() +
+  viridis::scale_fill_viridis('Rating',
+                     option = 'B') +
+  scale_y_reverse(breaks = c(4, 8, 12, 16)) +
+  ggtitle('The Walking Dead IMDb Ratings') +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        axis.ticks = element_blank())
+  
+
+```
+
+
